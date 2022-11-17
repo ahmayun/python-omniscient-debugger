@@ -12,7 +12,7 @@ def setup_argparser():
 
 class Debugger:
     def __init__(self, filename):
-        print("Debugger initialized for {filename}")
+        print(f"Debugger initialized for {filename}")
 
 
 def main(args):
