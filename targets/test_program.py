@@ -2,6 +2,10 @@
 
 import symtable
 
+print("mark1")
+print("mark2")
+print("mark3")
+print("mark4")
 
 st = symtable.symtable("x = 5", "ew", "exec")
 

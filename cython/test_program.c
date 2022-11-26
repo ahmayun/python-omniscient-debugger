@@ -883,6 +883,13 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name);
 /* Import.proto */
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level);
 
+/* PyObjectCall.proto */
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw);
+#else
+#define __Pyx_PyObject_Call(func, arg, kw) PyObject_Call(func, arg, kw)
+#endif
+
 /* PyDictVersioning.proto */
 #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
 #define __PYX_DICT_VERSION_INIT  ((PY_UINT64_T) -1)
@@ -928,13 +935,6 @@ static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_ve
 #define __Pyx_GetModuleGlobalName(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
 #define __Pyx_GetModuleGlobalNameUncached(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
 static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name);
-#endif
-
-/* PyObjectCall.proto */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw);
-#else
-#define __Pyx_PyObject_Call(func, arg, kw) PyObject_Call(func, arg, kw)
 #endif
 
 /* PyFunctionFastCall.proto */
@@ -1144,6 +1144,10 @@ static const char __pyx_k_open[] = "open";
 static const char __pyx_k_read[] = "read";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_enter[] = "__enter__";
+static const char __pyx_k_mark1[] = "mark1";
+static const char __pyx_k_mark2[] = "mark2";
+static const char __pyx_k_mark3[] = "mark3";
+static const char __pyx_k_mark4[] = "mark4";
 static const char __pyx_k_print[] = "print";
 static const char __pyx_k_import[] = "__import__";
 static const char __pyx_k_TWO_txt[] = "./TWO.txt";
@@ -1162,6 +1166,10 @@ static PyObject *__pyx_n_s_f;
 static PyObject *__pyx_n_s_get_identifiers;
 static PyObject *__pyx_n_s_import;
 static PyObject *__pyx_n_s_main;
+static PyObject *__pyx_n_u_mark1;
+static PyObject *__pyx_n_u_mark2;
+static PyObject *__pyx_n_u_mark3;
+static PyObject *__pyx_n_u_mark4;
 static PyObject *__pyx_n_s_name;
 static PyObject *__pyx_n_s_open;
 static PyObject *__pyx_n_s_print;
@@ -1174,6 +1182,10 @@ static PyObject *__pyx_kp_u_x_5;
 static PyObject *__pyx_tuple_;
 static PyObject *__pyx_tuple__2;
 static PyObject *__pyx_tuple__3;
+static PyObject *__pyx_tuple__4;
+static PyObject *__pyx_tuple__5;
+static PyObject *__pyx_tuple__6;
+static PyObject *__pyx_tuple__7;
 /* Late includes */
 
 static PyMethodDef __pyx_methods[] = {
@@ -1233,6 +1245,10 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_get_identifiers, __pyx_k_get_identifiers, sizeof(__pyx_k_get_identifiers), 0, 0, 1, 1},
   {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
   {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
+  {&__pyx_n_u_mark1, __pyx_k_mark1, sizeof(__pyx_k_mark1), 0, 1, 0, 1},
+  {&__pyx_n_u_mark2, __pyx_k_mark2, sizeof(__pyx_k_mark2), 0, 1, 0, 1},
+  {&__pyx_n_u_mark3, __pyx_k_mark3, sizeof(__pyx_k_mark3), 0, 1, 0, 1},
+  {&__pyx_n_u_mark4, __pyx_k_mark4, sizeof(__pyx_k_mark4), 0, 1, 0, 1},
   {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
   {&__pyx_n_s_open, __pyx_k_open, sizeof(__pyx_k_open), 0, 0, 1, 1},
   {&__pyx_n_s_print, __pyx_k_print, sizeof(__pyx_k_print), 0, 0, 1, 1},
@@ -1245,8 +1261,8 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {0, 0, 0, 0, 0, 0, 0}
 };
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 8, __pyx_L1_error)
-  __pyx_builtin_open = __Pyx_GetBuiltinName(__pyx_n_s_open); if (!__pyx_builtin_open) __PYX_ERR(0, 10, __pyx_L1_error)
+  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 5, __pyx_L1_error)
+  __pyx_builtin_open = __Pyx_GetBuiltinName(__pyx_n_s_open); if (!__pyx_builtin_open) __PYX_ERR(0, 14, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -1256,24 +1272,92 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
+  /* "test_program.py":5
+ * import symtable
+ * 
+ * print("mark1")             # <<<<<<<<<<<<<<
+ * print("mark2")
+ * print("mark3")
+ */
+
+#line 5 "test_program.py"
+  __pyx_tuple_ = PyTuple_Pack(1, __pyx_n_u_mark1); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 5, __pyx_L1_error)
+
+#line 5 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple_);
+
+#line 5 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple_);
+
   /* "test_program.py":6
  * 
+ * print("mark1")
+ * print("mark2")             # <<<<<<<<<<<<<<
+ * print("mark3")
+ * print("mark4")
+ */
+
+#line 6 "test_program.py"
+  __pyx_tuple__2 = PyTuple_Pack(1, __pyx_n_u_mark2); if (unlikely(!__pyx_tuple__2)) __PYX_ERR(0, 6, __pyx_L1_error)
+
+#line 6 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple__2);
+
+#line 6 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple__2);
+
+  /* "test_program.py":7
+ * print("mark1")
+ * print("mark2")
+ * print("mark3")             # <<<<<<<<<<<<<<
+ * print("mark4")
+ * 
+ */
+
+#line 7 "test_program.py"
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_u_mark3); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 7, __pyx_L1_error)
+
+#line 7 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple__3);
+
+#line 7 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple__3);
+
+  /* "test_program.py":8
+ * print("mark2")
+ * print("mark3")
+ * print("mark4")             # <<<<<<<<<<<<<<
+ * 
+ * st = symtable.symtable("x = 5", "ew", "exec")
+ */
+
+#line 8 "test_program.py"
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_n_u_mark4); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 8, __pyx_L1_error)
+
+#line 8 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple__4);
+
+#line 8 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple__4);
+
+  /* "test_program.py":10
+ * print("mark4")
  * 
  * st = symtable.symtable("x = 5", "ew", "exec")             # <<<<<<<<<<<<<<
  * 
  * print(st.get_identifiers())
  */
 
-#line 6 "test_program.py"
-  __pyx_tuple_ = PyTuple_Pack(3, __pyx_kp_u_x_5, __pyx_n_u_ew, __pyx_n_u_exec); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 6, __pyx_L1_error)
+#line 10 "test_program.py"
+  __pyx_tuple__5 = PyTuple_Pack(3, __pyx_kp_u_x_5, __pyx_n_u_ew, __pyx_n_u_exec); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(0, 10, __pyx_L1_error)
 
-#line 6 "test_program.py"
-  __Pyx_GOTREF(__pyx_tuple_);
+#line 10 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple__5);
 
-#line 6 "test_program.py"
-  __Pyx_GIVEREF(__pyx_tuple_);
+#line 10 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple__5);
 
-  /* "test_program.py":10
+  /* "test_program.py":14
  * print(st.get_identifiers())
  * 
  * with open("./TWO.txt", 'r') as f:             # <<<<<<<<<<<<<<
@@ -1281,40 +1365,40 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * 
  */
 
-#line 10 "test_program.py"
-  __pyx_tuple__2 = PyTuple_Pack(2, __pyx_kp_u_TWO_txt, __pyx_n_u_r); if (unlikely(!__pyx_tuple__2)) __PYX_ERR(0, 10, __pyx_L1_error)
+#line 14 "test_program.py"
+  __pyx_tuple__6 = PyTuple_Pack(2, __pyx_kp_u_TWO_txt, __pyx_n_u_r); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 14, __pyx_L1_error)
 
-#line 10 "test_program.py"
-  __Pyx_GOTREF(__pyx_tuple__2);
+#line 14 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple__6);
 
-#line 10 "test_program.py"
-  __Pyx_GIVEREF(__pyx_tuple__2);
+#line 14 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple__6);
 
-#line 10 "test_program.py"
-  __pyx_tuple__3 = PyTuple_Pack(3, Py_None, Py_None, Py_None); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 10, __pyx_L1_error)
+#line 14 "test_program.py"
+  __pyx_tuple__7 = PyTuple_Pack(3, Py_None, Py_None, Py_None); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 14, __pyx_L1_error)
 
-#line 10 "test_program.py"
-  __Pyx_GOTREF(__pyx_tuple__3);
+#line 14 "test_program.py"
+  __Pyx_GOTREF(__pyx_tuple__7);
 
-#line 10 "test_program.py"
-  __Pyx_GIVEREF(__pyx_tuple__3);
+#line 14 "test_program.py"
+  __Pyx_GIVEREF(__pyx_tuple__7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   __Pyx_RefNannyFinishContext();
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   return 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   __pyx_L1_error:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   __Pyx_RefNannyFinishContext();
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   return -1;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
 }
 
 static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {
@@ -1600,7 +1684,7 @@ if (!__Pyx_RefNanny) {
  * 
  * import symtable             # <<<<<<<<<<<<<<
  * 
- * 
+ * print("mark1")
  */
 
 #line 3 "test_program.py"
@@ -1615,45 +1699,113 @@ if (!__Pyx_RefNanny) {
 #line 3 "test_program.py"
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
+  /* "test_program.py":5
+ * import symtable
+ * 
+ * print("mark1")             # <<<<<<<<<<<<<<
+ * print("mark2")
+ * print("mark3")
+ */
+
+#line 5 "test_program.py"
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 5, __pyx_L1_error)
+
+#line 5 "test_program.py"
+  __Pyx_GOTREF(__pyx_t_1);
+
+#line 5 "test_program.py"
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
   /* "test_program.py":6
  * 
+ * print("mark1")
+ * print("mark2")             # <<<<<<<<<<<<<<
+ * print("mark3")
+ * print("mark4")
+ */
+
+#line 6 "test_program.py"
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__2, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 6, __pyx_L1_error)
+
+#line 6 "test_program.py"
+  __Pyx_GOTREF(__pyx_t_1);
+
+#line 6 "test_program.py"
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "test_program.py":7
+ * print("mark1")
+ * print("mark2")
+ * print("mark3")             # <<<<<<<<<<<<<<
+ * print("mark4")
+ * 
+ */
+
+#line 7 "test_program.py"
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 7, __pyx_L1_error)
+
+#line 7 "test_program.py"
+  __Pyx_GOTREF(__pyx_t_1);
+
+#line 7 "test_program.py"
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "test_program.py":8
+ * print("mark2")
+ * print("mark3")
+ * print("mark4")             # <<<<<<<<<<<<<<
+ * 
+ * st = symtable.symtable("x = 5", "ew", "exec")
+ */
+
+#line 8 "test_program.py"
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 8, __pyx_L1_error)
+
+#line 8 "test_program.py"
+  __Pyx_GOTREF(__pyx_t_1);
+
+#line 8 "test_program.py"
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "test_program.py":10
+ * print("mark4")
  * 
  * st = symtable.symtable("x = 5", "ew", "exec")             # <<<<<<<<<<<<<<
  * 
  * print(st.get_identifiers())
  */
 
-#line 6 "test_program.py"
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_symtable); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 6, __pyx_L1_error)
+#line 10 "test_program.py"
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_symtable); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 10, __pyx_L1_error)
 
-#line 6 "test_program.py"
+#line 10 "test_program.py"
   __Pyx_GOTREF(__pyx_t_1);
 
-#line 6 "test_program.py"
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_symtable); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 6, __pyx_L1_error)
+#line 10 "test_program.py"
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_symtable); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 10, __pyx_L1_error)
 
-#line 6 "test_program.py"
+#line 10 "test_program.py"
   __Pyx_GOTREF(__pyx_t_2);
 
-#line 6 "test_program.py"
+#line 10 "test_program.py"
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 6 "test_program.py"
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 6, __pyx_L1_error)
+#line 10 "test_program.py"
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_tuple__5, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 10, __pyx_L1_error)
 
-#line 6 "test_program.py"
+#line 10 "test_program.py"
   __Pyx_GOTREF(__pyx_t_1);
 
-#line 6 "test_program.py"
+#line 10 "test_program.py"
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-#line 6 "test_program.py"
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_st, __pyx_t_1) < 0) __PYX_ERR(0, 6, __pyx_L1_error)
+#line 10 "test_program.py"
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_st, __pyx_t_1) < 0) __PYX_ERR(0, 10, __pyx_L1_error)
 
-#line 6 "test_program.py"
+#line 10 "test_program.py"
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "test_program.py":8
+  /* "test_program.py":12
  * st = symtable.symtable("x = 5", "ew", "exec")
  * 
  * print(st.get_identifiers())             # <<<<<<<<<<<<<<
@@ -1661,43 +1813,43 @@ if (!__Pyx_RefNanny) {
  * with open("./TWO.txt", 'r') as f:
  */
 
-#line 8 "test_program.py"
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_st); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 8, __pyx_L1_error)
+#line 12 "test_program.py"
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_st); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 12, __pyx_L1_error)
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_GOTREF(__pyx_t_1);
 
-#line 8 "test_program.py"
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get_identifiers); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 8, __pyx_L1_error)
+#line 12 "test_program.py"
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get_identifiers); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 12, __pyx_L1_error)
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_GOTREF(__pyx_t_2);
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 8 "test_program.py"
-  __pyx_t_1 = __Pyx_PyObject_CallNoArg(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 8, __pyx_L1_error)
+#line 12 "test_program.py"
+  __pyx_t_1 = __Pyx_PyObject_CallNoArg(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 12, __pyx_L1_error)
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_GOTREF(__pyx_t_1);
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-#line 8 "test_program.py"
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 8, __pyx_L1_error)
+#line 12 "test_program.py"
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 12, __pyx_L1_error)
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_GOTREF(__pyx_t_2);
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 8 "test_program.py"
+#line 12 "test_program.py"
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "test_program.py":10
+  /* "test_program.py":14
  * print(st.get_identifiers())
  * 
  * with open("./TWO.txt", 'r') as f:             # <<<<<<<<<<<<<<
@@ -1705,79 +1857,79 @@ if (!__Pyx_RefNanny) {
  * 
  */
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   /*with:*/ {
 
-#line 10 "test_program.py"
-    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_open, __pyx_tuple__2, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 10, __pyx_L1_error)
+#line 14 "test_program.py"
+    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_open, __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 14, __pyx_L1_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_GOTREF(__pyx_t_2);
 
-#line 10 "test_program.py"
-    __pyx_t_3 = __Pyx_PyObject_LookupSpecial(__pyx_t_2, __pyx_n_s_exit); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 10, __pyx_L1_error)
+#line 14 "test_program.py"
+    __pyx_t_3 = __Pyx_PyObject_LookupSpecial(__pyx_t_2, __pyx_n_s_exit); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 14, __pyx_L1_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_GOTREF(__pyx_t_3);
 
-#line 10 "test_program.py"
-    __pyx_t_1 = __Pyx_PyObject_LookupSpecial(__pyx_t_2, __pyx_n_s_enter); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 10, __pyx_L2_error)
+#line 14 "test_program.py"
+    __pyx_t_1 = __Pyx_PyObject_LookupSpecial(__pyx_t_2, __pyx_n_s_enter); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 14, __pyx_L2_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_GOTREF(__pyx_t_1);
 
-#line 10 "test_program.py"
-    __pyx_t_4 = __Pyx_PyObject_CallNoArg(__pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 10, __pyx_L2_error)
+#line 14 "test_program.py"
+    __pyx_t_4 = __Pyx_PyObject_CallNoArg(__pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 14, __pyx_L2_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_GOTREF(__pyx_t_4);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __pyx_t_1 = __pyx_t_4;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __pyx_t_4 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     /*try:*/ {
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
       {
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_PyThreadState_declare
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_PyThreadState_assign
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_ExceptionSave(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGOTREF(__pyx_t_5);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGOTREF(__pyx_t_6);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGOTREF(__pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         /*try:*/ {
 
-#line 10 "test_program.py"
-          if (PyDict_SetItem(__pyx_d, __pyx_n_s_f, __pyx_t_1) < 0) __PYX_ERR(0, 10, __pyx_L6_error)
+#line 14 "test_program.py"
+          if (PyDict_SetItem(__pyx_d, __pyx_n_s_f, __pyx_t_1) < 0) __PYX_ERR(0, 14, __pyx_L6_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-          /* "test_program.py":11
+          /* "test_program.py":15
  * 
  * with open("./TWO.txt", 'r') as f:
  *     contents = f.read()             # <<<<<<<<<<<<<<
@@ -1785,37 +1937,37 @@ if (!__Pyx_RefNanny) {
  * print(contents)
  */
 
-#line 11 "test_program.py"
-          __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_f); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 11, __pyx_L6_error)
+#line 15 "test_program.py"
+          __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_f); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 15, __pyx_L6_error)
 
-#line 11 "test_program.py"
+#line 15 "test_program.py"
           __Pyx_GOTREF(__pyx_t_1);
 
-#line 11 "test_program.py"
-          __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_read); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 11, __pyx_L6_error)
+#line 15 "test_program.py"
+          __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_read); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 15, __pyx_L6_error)
 
-#line 11 "test_program.py"
+#line 15 "test_program.py"
           __Pyx_GOTREF(__pyx_t_2);
 
-#line 11 "test_program.py"
+#line 15 "test_program.py"
           __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 11 "test_program.py"
-          __pyx_t_1 = __Pyx_PyObject_CallNoArg(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 11, __pyx_L6_error)
+#line 15 "test_program.py"
+          __pyx_t_1 = __Pyx_PyObject_CallNoArg(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 15, __pyx_L6_error)
 
-#line 11 "test_program.py"
+#line 15 "test_program.py"
           __Pyx_GOTREF(__pyx_t_1);
 
-#line 11 "test_program.py"
+#line 15 "test_program.py"
           __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-#line 11 "test_program.py"
-          if (PyDict_SetItem(__pyx_d, __pyx_n_s_contents, __pyx_t_1) < 0) __PYX_ERR(0, 11, __pyx_L6_error)
+#line 15 "test_program.py"
+          if (PyDict_SetItem(__pyx_d, __pyx_n_s_contents, __pyx_t_1) < 0) __PYX_ERR(0, 15, __pyx_L6_error)
 
-#line 11 "test_program.py"
+#line 15 "test_program.py"
           __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-          /* "test_program.py":10
+          /* "test_program.py":14
  * print(st.get_identifiers())
  * 
  * with open("./TWO.txt", 'r') as f:             # <<<<<<<<<<<<<<
@@ -1823,244 +1975,244 @@ if (!__Pyx_RefNanny) {
  * 
  */
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         goto __pyx_L11_try_end;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __pyx_L6_error:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         /*except:*/ {
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_AddTraceback("test_program", __pyx_clineno, __pyx_lineno, __pyx_filename);
 
-#line 10 "test_program.py"
-          if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_2, &__pyx_t_4) < 0) __PYX_ERR(0, 10, __pyx_L8_except_error)
+#line 14 "test_program.py"
+          if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_2, &__pyx_t_4) < 0) __PYX_ERR(0, 14, __pyx_L8_except_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_GOTREF(__pyx_t_1);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_GOTREF(__pyx_t_2);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_GOTREF(__pyx_t_4);
 
-#line 10 "test_program.py"
-          __pyx_t_8 = PyTuple_Pack(3, __pyx_t_1, __pyx_t_2, __pyx_t_4); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 10, __pyx_L8_except_error)
+#line 14 "test_program.py"
+          __pyx_t_8 = PyTuple_Pack(3, __pyx_t_1, __pyx_t_2, __pyx_t_4); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 14, __pyx_L8_except_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_GOTREF(__pyx_t_8);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_8, NULL);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
 
-#line 10 "test_program.py"
-          if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 10, __pyx_L8_except_error)
+#line 14 "test_program.py"
+          if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 14, __pyx_L8_except_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_GOTREF(__pyx_t_9);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __pyx_t_10 = __Pyx_PyObject_IsTrue(__pyx_t_9);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-#line 10 "test_program.py"
-          if (__pyx_t_10 < 0) __PYX_ERR(0, 10, __pyx_L8_except_error)
+#line 14 "test_program.py"
+          if (__pyx_t_10 < 0) __PYX_ERR(0, 14, __pyx_L8_except_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __pyx_t_11 = ((!(__pyx_t_10 != 0)) != 0);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           if (__pyx_t_11) {
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
             __Pyx_GIVEREF(__pyx_t_1);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
             __Pyx_GIVEREF(__pyx_t_2);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
             __Pyx_XGIVEREF(__pyx_t_4);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
             __Pyx_ErrRestoreWithState(__pyx_t_1, __pyx_t_2, __pyx_t_4);
             __pyx_t_1 = 0; __pyx_t_2 = 0; __pyx_t_4 = 0; 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
 
 
-#line 10 "test_program.py"
-            __PYX_ERR(0, 10, __pyx_L8_except_error)
+#line 14 "test_program.py"
+            __PYX_ERR(0, 14, __pyx_L8_except_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           goto __pyx_L7_exception_handled;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __pyx_L8_except_error:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGIVEREF(__pyx_t_5);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGIVEREF(__pyx_t_6);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGIVEREF(__pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_ExceptionReset(__pyx_t_5, __pyx_t_6, __pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         goto __pyx_L1_error;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __pyx_L7_exception_handled:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGIVEREF(__pyx_t_5);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGIVEREF(__pyx_t_6);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_XGIVEREF(__pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __Pyx_ExceptionReset(__pyx_t_5, __pyx_t_6, __pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         __pyx_L11_try_end:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
       }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     /*finally:*/ {
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
       /*normal exit:*/{
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         if (__pyx_t_3) {
 
-#line 10 "test_program.py"
-          __pyx_t_7 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_tuple__3, NULL);
+#line 14 "test_program.py"
+          __pyx_t_7 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_tuple__7, NULL);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-#line 10 "test_program.py"
-          if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 10, __pyx_L1_error)
+#line 14 "test_program.py"
+          if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 14, __pyx_L1_error)
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_GOTREF(__pyx_t_7);
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
           __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
         goto __pyx_L5;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
       }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
       __pyx_L5:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     }
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     goto __pyx_L15;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __pyx_L2_error:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     goto __pyx_L1_error;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
     __pyx_L15:;
 
-#line 10 "test_program.py"
+#line 14 "test_program.py"
   }
 
-  /* "test_program.py":13
+  /* "test_program.py":17
  *     contents = f.read()
  * 
  * print(contents)             # <<<<<<<<<<<<<<
  */
 
-#line 13 "test_program.py"
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_contents); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 13, __pyx_L1_error)
+#line 17 "test_program.py"
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_contents); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 17, __pyx_L1_error)
 
-#line 13 "test_program.py"
+#line 17 "test_program.py"
   __Pyx_GOTREF(__pyx_t_4);
 
-#line 13 "test_program.py"
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 13, __pyx_L1_error)
+#line 17 "test_program.py"
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 17, __pyx_L1_error)
 
-#line 13 "test_program.py"
+#line 17 "test_program.py"
   __Pyx_GOTREF(__pyx_t_2);
 
-#line 13 "test_program.py"
+#line 17 "test_program.py"
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-#line 13 "test_program.py"
+#line 17 "test_program.py"
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "test_program.py":1
@@ -2275,6 +2427,26 @@ bad:
     return module;
 }
 
+/* PyObjectCall */
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    PyObject *result;
+    ternaryfunc call = func->ob_type->tp_call;
+    if (unlikely(!call))
+        return PyObject_Call(func, arg, kw);
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+        return NULL;
+    result = (*call)(func, arg, kw);
+    Py_LeaveRecursiveCall();
+    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(
+            PyExc_SystemError,
+            "NULL result without error in PyObject_Call");
+    }
+    return result;
+}
+#endif
+
 /* PyDictVersioning */
 #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj) {
@@ -2335,26 +2507,6 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
 #endif
     return __Pyx_GetBuiltinName(name);
 }
-
-/* PyObjectCall */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw) {
-    PyObject *result;
-    ternaryfunc call = func->ob_type->tp_call;
-    if (unlikely(!call))
-        return PyObject_Call(func, arg, kw);
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
-        return NULL;
-    result = (*call)(func, arg, kw);
-    Py_LeaveRecursiveCall();
-    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
-        PyErr_SetString(
-            PyExc_SystemError,
-            "NULL result without error in PyObject_Call");
-    }
-    return result;
-}
-#endif
 
 /* PyFunctionFastCall */
 #if CYTHON_FAST_PYCALL
