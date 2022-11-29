@@ -7,6 +7,7 @@ import signal
 from constants import *
 import subprocess
 import posixpath
+from copy import copy
 import numpy as np
 from elftools.elf.elffile import ELFFile
 
@@ -38,10 +39,11 @@ class Process:
         return pid
 
 class ELF:
-    def __init__(self, bin_name):
+    def __init__(self, pyfile, bin_name):
         self.bin_name = bin_name
+        self.pyfile = pyfile
 
-    def lpe_filename(line_program, file_index):
+    def lpe_filename(self, line_program, file_index):
         lp_header = line_program.header
         file_entries = lp_header["file_entry"]
 
@@ -59,25 +61,30 @@ class ELF:
             self.elf = ELFFile(f)
             dwarfinfo = self.elf.get_dwarf_info()
             line_mapping = {} # {linenumber: address}
+            check = {}
             for CU in dwarfinfo.iter_CUs():
                 line_program = dwarfinfo.line_program_for_CU(CU)
                 lp_entries = line_program.get_entries()
                 for lpe in lp_entries:
                     if not lpe.state or lpe.state.file == 0:
                         continue
-                    # filename = self.lpe_filename(line_program, lpe.state.file)
+
                     line_mapping[lpe.state.line] = lpe.state.address
+            
             return line_mapping
 
 
 class Debugger:
-    def __init__(self, bin_name):
+    def __init__(self, pyfile, bin_name):
         self.bin_name = bin_name
+        self.pyfile = pyfile
+        self.line_mappings = ELF(self.pyfile, self.bin_name).get_line_mapping()
+        self.prev_line = []
+        self.snapshots = []
         self.debug(f"Debugger initialized for {bin_name}")
 
     def lineToRIP(self, lineno):
-        line_mappings = ELF(self.bin_name).get_line_mapping()
-        return line_mappings.get(lineno) # ctypes.c_void_p(0x402198)
+        return self.line_mappings.get(lineno) # ctypes.c_void_p(0x402198)
 
     def get_word_at(self, tracee_pid, c_pointer):
         return libc.ptrace(PTRACE_PEEKDATA, tracee_pid, ctypes.c_void_p(c_pointer), None)
@@ -91,38 +98,30 @@ class Debugger:
             word = self.get_word_at(tracee_pid, c_pointer + offset)
             self.debug(f"--{'>' if offset == 0 else '-'}: {self.format_word(word)}")
 
-    def set_breakpoint(self, tracee_pid, lineno):
-        address = self.lineToRIP(lineno)
-        if address == None:
-            self.debug("No line found")
-            return
-
-        self.debug(f"Setting breakpoint at line {lineno} -> {address}")
+    def get_double_word_at(self, tracee_pid, address):
         low_word = self.get_word_at(tracee_pid, address)
         high_word = self.get_word_at(tracee_pid, address+WORD_SIZE)
         mask64 = np.uint64(0x00000000ffffffff)
-        self.saved_word1 = np.uint64(low_word) & mask64
-        self.saved_word2 = np.uint64(high_word) & mask64
-        self.saved_word_combined =  int((self.saved_word2 << np.uint64(32)) | self.saved_word1)
-        # litmus = np.uint64(-1)
-        
-        # print("context before breakpoint:")
-        # self.print_n_words_around(tracee_pid, self.lineToRIP(lineno))
+        word1 = np.uint64(low_word) & mask64
+        word2 = np.uint64(high_word) & mask64
+        return int((word2 << np.uint64(32)) | word1)
+
+    def set_breakpoint(self, tracee_pid, lineno):
+        i = 0
+        address = 0
+
+        self.debug(f"checking for line {lineno}")
+        address = self.lineToRIP(lineno)
+        if address == None:
+            self.debug("No line found")
+            return self.current_line
+
+        self.debug(f"Setting breakpoint at line {lineno} -> 0x{address:x}")
+        self.saved_word_combined = self.get_double_word_at(tracee_pid, address)
 
         libc.ptrace(PTRACE_POKEDATA, tracee_pid, ctypes.c_void_p(address), 0xCC)
         self.breakpoint_active = True
-
-        # print("context after breakpoint:")
-        # self.print_n_words_around(tracee_pid, self.lineToRIP(lineno))
-
-        # print(f"low: {hex(self.saved_word1)}")
-        # print(f"high: {hex(self.saved_word2)}")
-        # print(f"mix: {hex(self.saved_word_combined)}")
-        # print(f"mix converted: {hex(int(self.saved_word_combined))}")
-        # print(f"litmus: {hex(litmus & mask64)}")
-        # print(f"SAVED BYTES: {self.format_word(self.saved_word_combined, 8)}")
-        # print(f"SAVED BYTES: {self.format_word(self.saved_word1, 8)}, {self.format_word(self.saved_word2, 8)}")
-
+        return lineno + i
 
     def read_string_from_pointer(self, child, c_pointer):
         chars = bytes()
@@ -135,7 +134,7 @@ class Debugger:
             chars += word_bytes
             i += 4
 
-    def single_step(self, tracee_pid):
+    def single_asm_step(self, tracee_pid):
         libc.ptrace(PTRACE_SINGLESTEP, tracee_pid, 0, 0)
         return os.waitpid(tracee_pid, 0)[1]
 
@@ -144,10 +143,16 @@ class Debugger:
         libc.ptrace(PTRACE_CONT, tracee_pid, 0, 0)
         return os.waitpid(tracee_pid, 0)[1]
 
+    def write_double_word(self, tracee_pid, address, double_word):
+        libc.ptrace(PTRACE_POKEDATA, tracee_pid, address, ctypes.c_void_p(double_word))
+
+    def set_registers(self, tracee_pid, registers):
+        libc.ptrace(PTRACE_SETREGS, tracee_pid, None, ctypes.byref(registers))
+
     def remove_breakpoint(self, tracee_pid, line, registers):
         registers.rip -= 1
-        libc.ptrace(PTRACE_POKEDATA, tracee_pid, self.lineToRIP(line), ctypes.c_void_p(self.saved_word_combined))
-        libc.ptrace(PTRACE_SETREGS, tracee_pid, None, ctypes.byref(registers))
+        self.write_double_word(tracee_pid, self.lineToRIP(line), self.saved_word_combined)
+        self.set_registers(tracee_pid, registers)
         self.breakpoint_active = False
 
     def get_tracee_exit_code(self, tracee_pid):
@@ -161,6 +166,45 @@ class Debugger:
     def input(self, string):
         return input(f"[cs5204-debugger] > {string}")
 
+    def single_src_step_fwd(self, tracee_pid):
+        current_line = self.set_breakpoint(tracee_pid, self.current_line+1)
+        self.set_current_line(current_line)
+
+    def single_src_step_back(self, tracee_pid):
+        current_line = self.set_breakpoint(tracee_pid, self.prev_line[-1])
+        self.revert_current_line(current_line)
+
+    def revert_current_line(self, lineno):
+        self.prev_line = self.prev_line[:-1]
+        self.current_line = lineno
+
+    def set_current_line(self, current_line):
+        self.prev_line.append(self.current_line)
+        self.current_line = current_line
+
+    def get_stack_boundaries(self, tracee_pid, registers):
+        return registers.rsp, self.stack_base
+
+    def copy_bytes(self, tracee_pid, addr_top, addr_bottom):
+        total_double_words = (addr_bottom-addr_top) // (WORD_SIZE*2)
+        double_words = []
+        for i in range(0, total_double_words):
+            double_words.append(self.get_double_word_at(tracee_pid, addr_top + WORD_SIZE*2*i))
+        return double_words
+    
+    def save_program_state(self, tracee_pid, registers):
+        top, bottom = self.get_stack_boundaries(tracee_pid, registers)
+        return copy(registers), self.copy_bytes(tracee_pid, top, bottom)
+
+    def set_stack(self, tracee_pid, stack, stack_base_addr):
+        for i, double_word in enumerate(stack):
+            self.write_double_word(tracee_pid, stack_base_addr + WORD_SIZE*2*i, double_word)
+
+    def restore_state(self, tracee_pid, state):
+        registers, stack = state
+        self.debug(f"Restoring state rip = {registers.rip}")
+        self.set_registers(tracee_pid, registers)
+        self.set_stack(tracee_pid, stack, self.stack_base)
 
     def handle_signals(self, tracee_pid):
         # Main input loop of the debugger
@@ -168,7 +212,6 @@ class Debugger:
         self.breakpoint_active = False
         while True:
             status = self.continue_execution(tracee_pid)
-            # print(f"status = {status}")
             is_stopped = os.WIFSTOPPED(status)
             stopped_by_tracer = (os.WSTOPSIG(status) & 0x80) != 0
             stopsig = (os.WSTOPSIG(status) | 0x80) ^ 0x80
@@ -182,35 +225,29 @@ class Debugger:
             
             if registers.orig_rax == 59: # execve
                 # Set breakpoint after execve call completes
-                self.single_step(tracee_pid)
-                self.set_breakpoint(tracee_pid, self.break_line)
+                self.single_asm_step(tracee_pid)
+                self.stack_base = registers.rsp
+                self.debug(f"stack base = 0x{self.stack_base:X}")
+                self.current_line = self.set_breakpoint(tracee_pid, self.break_line)
                 continue
 
-            # print(f"stopsig {signal.Signals(stopsig).name}")
-            # print(f"openat syscall encountered, filename {self.read_string_from_pointer(tracee_pid, registers.rsi)}")
-            # print(f"rip = {hex(registers.rip)} -> {hex(self.get_word_at(tracee_pid, registers.rip))}")
             if self.breakpoint_active:
-                # set rip back one byte since it executed a 0xcc
-                # print("context around breakpoint, before replacement")
-                # self.print_n_words_around(tracee_pid, registers.rip)
-                # print(f"writing: {self.saved_word_combined:x}")
-                # print(f"rip = {hex(registers.rip)}")
-                # print("context around breakpoint, after replacement")
-                # self.print_n_words_around(tracee_pid, registers.rip)
-            
                 self.remove_breakpoint(tracee_pid, self.current_line, registers)
-                self.debug(f"paused at line {self.current_line} -> 0x{self.lineToRIP(self.current_line):x}...")
+                self.debug(f"paused at line {self.current_line} -> 0x{self.lineToRIP(self.current_line)}...")
                 cmd = self.input("")
                 if cmd == "c":
                     break
                 elif cmd == "n":
-                    self.set_breakpoint(tracee_pid, self.current_line+1)
-                    self.current_line += 1
-            
-        self.debug(f"Tracee exited with code {self.get_tracee_exit_code(tracee_pid)}")
-            
-
+                    snapshot_regs, snapshot_stack = self.save_program_state(tracee_pid, registers)
+                    self.debug(snapshot_stack)
+                    self.snapshots.append((snapshot_regs, snapshot_stack))
+                    self.single_src_step_fwd(tracee_pid)
+                    self.debug(f"rip = {registers.rip}")
+                elif cmd == "b":
+                    self.single_src_step_back(tracee_pid)
+                    self.restore_state(tracee_pid, self.snapshots[-1])
                 
+        self.debug(f"Tracee exited with code {self.get_tracee_exit_code(tracee_pid)}")
 
     def start(self, break_line):
         self.break_line = int(break_line)
@@ -218,16 +255,30 @@ class Debugger:
 
         self.debug(f"Spawning process {self.bin_name} as tracee")
         tracee_pid = Process(self.bin_name).start()
-        return self.handle_signals(tracee_pid)
+        status = self.handle_signals(tracee_pid)
+        self.debug(f"debugger exited with status {status}")
+        return status
 
         
 
+def cython_transpile(pyfile):
+    raw_name = pyfile.split('/')[-1][:-3]
+
+    session = subprocess.Popen(['sh', './python_to_elf.sh', raw_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    session.communicate()
+    
+    if session.returncode != 0:
+        raise Exception("could not compile python to elf")
+
+    return f'bin/{raw_name}'
+
 
 def main(args):
-    target_program = args.target
+    file = args.target
+    target_program = cython_transpile(file) if file.endswith(".py") else file
     break_line = args.breakpoint
 
-    debugger = Debugger(target_program)
+    debugger = Debugger(file, target_program)
     debugger.start(break_line)
 
 
