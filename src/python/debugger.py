@@ -7,7 +7,7 @@ import signal
 from constants import *
 import subprocess
 import posixpath
-from copy import copy
+from copy import deepcopy
 import numpy as np
 from elftools.elf.elffile import ELFFile
 
@@ -75,13 +75,14 @@ class ELF:
 
 
 class Debugger:
-    def __init__(self, pyfile, bin_name):
+    def __init__(self, pyfile, bin_name, replay_enabled=True):
         self.bin_name = bin_name
         self.pyfile = pyfile
         self.line_mappings = ELF(self.pyfile, self.bin_name).get_line_mapping()
         self.prev_line = []
         self.snapshots = []
         self.back_step = 0
+        self.replay_enabled = replay_enabled
         self.debug(f"Debugger initialized for {bin_name}")
 
     def lineToRIP(self, lineno):
@@ -167,18 +168,23 @@ class Debugger:
     def input(self, string):
         return input(f"[cs5204-debugger] > {string}")
 
-    def single_src_step_fwd(self, tracee_pid):
-        current_line = self.set_breakpoint(tracee_pid, self.current_line+1)
-        self.set_current_line(current_line)
-        self.back_step += 1
+    def single_src_step_fwd(self, tracee_pid, replay=False):
+        if not replay:
+            current_line = self.set_breakpoint(tracee_pid, self.current_line+1)
+            self.set_current_line(current_line)
+        else:
+            self.back_step += 1
+            self.restore_state(tracee_pid, self.snapshots[self.back_step])
+            self.set_current_line(self.prev_line[self.back_step])
 
     def single_src_step_back(self, tracee_pid):
-        current_line = self.set_breakpoint(tracee_pid, self.prev_line[-1])
-        self.revert_current_line(current_line)
         self.back_step -= 1
+        current_line = self.set_breakpoint(tracee_pid, self.prev_line[self.back_step])
+        self.revert_current_line(current_line)
+        self.debug(f"Replaying state before line {self.current_line} -> 0x{self.lineToRIP(self.current_line):x}")
 
     def revert_current_line(self, lineno):
-        self.prev_line = self.prev_line[:-1]
+        # self.prev_line = self.prev_line[:-1]
         self.current_line = lineno
 
     def set_current_line(self, current_line):
@@ -197,7 +203,7 @@ class Debugger:
     
     def save_program_state(self, tracee_pid, registers):
         top, bottom = self.get_stack_boundaries(tracee_pid, registers)
-        return copy(registers), self.copy_bytes(tracee_pid, top, bottom)
+        return deepcopy(registers), self.copy_bytes(tracee_pid, top, bottom)
 
     def set_stack(self, tracee_pid, stack, stack_base_addr):
         for i, double_word in enumerate(stack):
@@ -207,6 +213,23 @@ class Debugger:
         registers, stack = state
         self.set_registers(tracee_pid, registers)
         self.set_stack(tracee_pid, stack, self.stack_base)
+
+    def enter_replay_mode(self, tracee_pid):
+        self.debug("ENTERING REPLAY MODE")
+        self.single_src_step_back(tracee_pid)
+        self.restore_state(tracee_pid, self.snapshots[self.back_step])
+        while True:
+            cmd = self.input("")
+            if cmd == "n":
+                self.single_src_step_fwd(tracee_pid, replay=True)
+            elif cmd == "b":
+                self.single_src_step_back(tracee_pid)
+                self.restore_state(tracee_pid, self.snapshots[self.back_step])
+
+            if self.back_step >= 0:
+                self.debug(f"EXITING REPLAY MODE")
+                self.set_breakpoint(tracee_pid, self.current_line+1)
+                break
 
     def handle_signals(self, tracee_pid):
         # Main input loop of the debugger
@@ -244,8 +267,12 @@ class Debugger:
                     self.snapshots.append((snapshot_regs, snapshot_stack))
                     self.single_src_step_fwd(tracee_pid)
                 elif cmd == "b":
-                    self.single_src_step_back(tracee_pid)
-                    self.restore_state(tracee_pid, self.snapshots[self.back_step])
+                    if self.replay_enabled:
+                        self.enter_replay_mode(tracee_pid)
+                    else:
+                        self.single_src_step_back(tracee_pid)
+                        self.restore_state(tracee_pid, self.snapshots[self.back_step])
+            
                 
         self.debug(f"Tracee exited with code {self.get_tracee_exit_code(tracee_pid)}")
 
@@ -278,7 +305,7 @@ def main(args):
     target_program = cython_transpile(file) if file.endswith(".py") else file
     break_line = args.breakpoint
 
-    debugger = Debugger(file, target_program)
+    debugger = Debugger(file, target_program, False)
     debugger.start(break_line)
 
 
