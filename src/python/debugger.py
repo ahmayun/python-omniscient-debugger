@@ -81,6 +81,7 @@ class Debugger:
         self.line_mappings = ELF(self.pyfile, self.bin_name).get_line_mapping()
         self.prev_line = []
         self.snapshots = []
+        self.back_step = 0
         self.debug(f"Debugger initialized for {bin_name}")
 
     def lineToRIP(self, lineno):
@@ -169,10 +170,12 @@ class Debugger:
     def single_src_step_fwd(self, tracee_pid):
         current_line = self.set_breakpoint(tracee_pid, self.current_line+1)
         self.set_current_line(current_line)
+        self.back_step += 1
 
     def single_src_step_back(self, tracee_pid):
         current_line = self.set_breakpoint(tracee_pid, self.prev_line[-1])
         self.revert_current_line(current_line)
+        self.back_step -= 1
 
     def revert_current_line(self, lineno):
         self.prev_line = self.prev_line[:-1]
@@ -202,7 +205,6 @@ class Debugger:
 
     def restore_state(self, tracee_pid, state):
         registers, stack = state
-        self.debug(f"Restoring state rip = {registers.rip}")
         self.set_registers(tracee_pid, registers)
         self.set_stack(tracee_pid, stack, self.stack_base)
 
@@ -227,25 +229,23 @@ class Debugger:
                 # Set breakpoint after execve call completes
                 self.single_asm_step(tracee_pid)
                 self.stack_base = registers.rsp
-                self.debug(f"stack base = 0x{self.stack_base:X}")
+                self.debug(f"stack base = 0x{self.stack_base:x}")
                 self.current_line = self.set_breakpoint(tracee_pid, self.break_line)
                 continue
 
             if self.breakpoint_active:
                 self.remove_breakpoint(tracee_pid, self.current_line, registers)
-                self.debug(f"paused at line {self.current_line} -> 0x{self.lineToRIP(self.current_line)}...")
+                self.debug(f"paused at line {self.current_line} -> 0x{self.lineToRIP(self.current_line):x}...")
                 cmd = self.input("")
                 if cmd == "c":
                     break
                 elif cmd == "n":
                     snapshot_regs, snapshot_stack = self.save_program_state(tracee_pid, registers)
-                    self.debug(snapshot_stack)
                     self.snapshots.append((snapshot_regs, snapshot_stack))
                     self.single_src_step_fwd(tracee_pid)
-                    self.debug(f"rip = {registers.rip}")
                 elif cmd == "b":
                     self.single_src_step_back(tracee_pid)
-                    self.restore_state(tracee_pid, self.snapshots[-1])
+                    self.restore_state(tracee_pid, self.snapshots[self.back_step])
                 
         self.debug(f"Tracee exited with code {self.get_tracee_exit_code(tracee_pid)}")
 
