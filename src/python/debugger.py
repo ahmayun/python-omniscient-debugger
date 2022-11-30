@@ -32,7 +32,7 @@ class Process:
         if pid == 0:
             libc.ptrace(PTRACE_TRACEME, 0, 0, 0)
             libc.kill(os.getpid(), SIGSTOP)
-            os.execvp(self.bin_name, ["./TWO.txt"])
+            os.execvp(self.bin_name, ["-"])
         else:
             os.waitpid(pid, 0)[1]
             libc.ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD | PTRACE_O_EXITKILL)
@@ -146,10 +146,10 @@ class Debugger:
         return os.waitpid(tracee_pid, 0)[1]
 
     def write_double_word(self, tracee_pid, address, double_word):
-        libc.ptrace(PTRACE_POKEDATA, tracee_pid, address, ctypes.c_void_p(double_word))
+        return libc.ptrace(PTRACE_POKEDATA, tracee_pid, ctypes.c_void_p(address), ctypes.c_void_p(double_word))
 
     def set_registers(self, tracee_pid, registers):
-        libc.ptrace(PTRACE_SETREGS, tracee_pid, None, ctypes.byref(registers))
+        return libc.ptrace(PTRACE_SETREGS, tracee_pid, None, ctypes.byref(registers))
 
     def remove_breakpoint(self, tracee_pid, line, registers):
         registers.rip -= 1
@@ -169,11 +169,11 @@ class Debugger:
         return input(f"[cs5204-debugger] > {string}")
 
     def single_src_step_fwd(self, tracee_pid, replay=False):
+        self.back_step += 1
         if not replay:
             current_line = self.set_breakpoint(tracee_pid, self.current_line+1)
             self.set_current_line(current_line)
         else:
-            self.back_step += 1
             self.restore_state(tracee_pid, self.snapshots[self.back_step])
             self.set_current_line(self.prev_line[self.back_step])
 
@@ -181,7 +181,6 @@ class Debugger:
         self.back_step -= 1
         current_line = self.set_breakpoint(tracee_pid, self.prev_line[self.back_step])
         self.revert_current_line(current_line)
-        self.debug(f"Replaying state before line {self.current_line} -> 0x{self.lineToRIP(self.current_line):x}")
 
     def revert_current_line(self, lineno):
         # self.prev_line = self.prev_line[:-1]
@@ -203,33 +202,54 @@ class Debugger:
     
     def save_program_state(self, tracee_pid, registers):
         top, bottom = self.get_stack_boundaries(tracee_pid, registers)
-        return deepcopy(registers), self.copy_bytes(tracee_pid, top, bottom)
+        return registers, self.copy_bytes(tracee_pid, top, bottom)
 
-    def set_stack(self, tracee_pid, stack, stack_base_addr):
+    def set_stack(self, tracee_pid, stack, stack_base_addr, stack_top_addr):
         for i, double_word in enumerate(stack):
-            self.write_double_word(tracee_pid, stack_base_addr + WORD_SIZE*2*i, double_word)
+            ret = self.write_double_word(tracee_pid, stack_top_addr + WORD_SIZE*2*i, double_word)
+            if ret < 0:
+                self.debug(f"WRITING TO STACK FAILED!!! {ret} 0x{double_word:x}")
+
 
     def restore_state(self, tracee_pid, state):
         registers, stack = state
         self.set_registers(tracee_pid, registers)
-        self.set_stack(tracee_pid, stack, self.stack_base)
+        self.set_stack(tracee_pid, stack, self.stack_base, registers.rsp)
 
+    def low_byte(self, int64):
+        return np.uint64(int64) & np.uint64(0x00000000ffffffff)
+
+    def high_byte(self, int64):
+        return (np.uint64(int64) & np.uint64(0xffffffff00000000)) >> np.uint64(32)
+
+    def format_stack(self, stack, chunk_size = 4):
+        string = ""
+        if chunk_size == 8:
+            for i in range(0, len(stack)):
+                string += f"0x{self.stack_base + i*chunk_size:x}: {stack[-i-1]}\n"
+        elif chunk_size == 4:
+            for i in range(0, len(stack)):
+                string += f"0x{self.stack_base + i*chunk_size*2:x}: {self.high_byte(stack[-i-1])}\n" + f"0x{self.stack_base + i*chunk_size*2+4:x}: {self.low_byte(stack[-i-1])}\n"
+        return string
+
+    def format_regs(self, registers):
+        pass
+            
     def enter_replay_mode(self, tracee_pid):
         self.debug("ENTERING REPLAY MODE")
-        self.single_src_step_back(tracee_pid)
-        self.restore_state(tracee_pid, self.snapshots[self.back_step])
+        state_marker = len(self.snapshots)-1
         while True:
+            curr_regs, curr_stack = self.snapshots[state_marker]
             cmd = self.input("")
             if cmd == "n":
                 self.single_src_step_fwd(tracee_pid, replay=True)
             elif cmd == "b":
                 self.single_src_step_back(tracee_pid)
                 self.restore_state(tracee_pid, self.snapshots[self.back_step])
-
-            if self.back_step >= 0:
-                self.debug(f"EXITING REPLAY MODE")
-                self.set_breakpoint(tracee_pid, self.current_line+1)
-                break
+            elif cmd.startswith("p"):
+                chunk_size = int(cmd.split(" ")[1])
+                self.debug(self.format_stack(curr_stack, chunk_size))
+                # self.debug(self.format_regs(curr_regs))
 
     def handle_signals(self, tracee_pid):
         # Main input loop of the debugger
@@ -243,7 +263,7 @@ class Debugger:
             libc.ptrace(PTRACE_GETREGS, tracee_pid, None, ctypes.byref(registers))
 
             if os.WIFEXITED(status):
-                return 0
+                break
 
             if registers.orig_rax == 231: # check if exit
                 continue
@@ -259,20 +279,29 @@ class Debugger:
             if self.breakpoint_active:
                 self.remove_breakpoint(tracee_pid, self.current_line, registers)
                 self.debug(f"paused at line {self.current_line} -> 0x{self.lineToRIP(self.current_line):x}...")
-                cmd = self.input("")
-                if cmd == "c":
-                    break
-                elif cmd == "n":
-                    snapshot_regs, snapshot_stack = self.save_program_state(tracee_pid, registers)
-                    self.snapshots.append((snapshot_regs, snapshot_stack))
-                    self.single_src_step_fwd(tracee_pid)
-                elif cmd == "b":
-                    if self.replay_enabled:
-                        self.enter_replay_mode(tracee_pid)
-                    else:
-                        self.single_src_step_back(tracee_pid)
-                        self.restore_state(tracee_pid, self.snapshots[self.back_step])
-            
+                while True:
+                    cmd = self.input("")
+                    if cmd == "c":
+                        break
+                    elif cmd == "n":
+                        snapshot_regs, snapshot_stack = self.save_program_state(tracee_pid, registers)
+                        self.snapshots.append((deepcopy(snapshot_regs), deepcopy(snapshot_stack)))
+                        self.single_src_step_fwd(tracee_pid)
+                        break
+                    elif cmd == "b":
+                        if self.replay_enabled:
+                            self.enter_replay_mode(tracee_pid)
+                        else:
+                            self.single_src_step_back(tracee_pid)
+                            self.restore_state(tracee_pid, self.snapshots[self.back_step])
+                        break
+                    elif cmd.startswith("p"):
+                        split = cmd.split(" ")
+                        chunk_size = int(split[1]) if len(split) > 1 else 4
+                        regs, stack = self.save_program_state(tracee_pid, registers)
+                        self.debug(self.format_stack(stack, chunk_size))
+                        # self.debug(self.format_regs(regs))
+
                 
         self.debug(f"Tracee exited with code {self.get_tracee_exit_code(tracee_pid)}")
 
