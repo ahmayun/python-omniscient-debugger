@@ -15,7 +15,7 @@ libc = ctypes.CDLL('/lib/x86_64-linux-gnu/libc.so.6')
 
 def setup_argparser():
     parser = argparse.ArgumentParser()
-
+    # example usage: ./src/python/debugger.py -t bin/ctestprogram -b 10
     parser.add_argument("-t", "--target", help="specify target program")
     parser.add_argument("-b", "--breakpoint", required=False, help="line number to insert breakpoint on")
     parser.add_argument('--replay', required=False, action='store_true')
@@ -242,7 +242,7 @@ class Debugger:
                 string += f"0x{self.stack_base + i*chunk_size:x}: {stack[-i-1]}\n"
         elif chunk_size == 4:
             for i in range(0, len(stack)):
-                string += f"0x{self.stack_base + i*chunk_size*2:x}: {self.high_byte(stack[-i-1])}\n" + f"0x{self.stack_base + i*chunk_size*2+4:x}: {self.low_byte(stack[-i-1])}\n"
+                string += f"0x{self.stack_base - i*chunk_size*2:x}: {self.high_byte(stack[-i-1])}\n" + f"0x{self.stack_base - i*chunk_size*2-4:x}: {self.low_byte(stack[-i-1])}\n"
         return string
 
     def format_regs(self, registers):
