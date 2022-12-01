@@ -17,7 +17,8 @@ def setup_argparser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-t", "--target", help="specify target program")
-    parser.add_argument("-b", "--breakpoint", help="line number to insert breakpoint on")
+    parser.add_argument("-b", "--breakpoint", required=False, help="line number to insert breakpoint on")
+    parser.add_argument('--replay', required=False, action='store_true')
 
     return parser.parse_args()
 
@@ -75,18 +76,20 @@ class ELF:
 
 
 class Debugger:
-    def __init__(self, pyfile, bin_name, replay_enabled=True):
+    def __init__(self, pyfile, bin_name):
         self.bin_name = bin_name
         self.pyfile = pyfile
         self.line_mappings = ELF(self.pyfile, self.bin_name).get_line_mapping()
         self.prev_line = []
         self.snapshots = []
         self.back_step = 0
-        self.replay_enabled = replay_enabled
         self.debug(f"Debugger initialized for {bin_name}")
 
     def lineToRIP(self, lineno):
         return self.line_mappings.get(lineno) # ctypes.c_void_p(0x402198)
+
+    def get_first_line(self):
+        return min(self.line_mappings.keys())
 
     def get_word_at(self, tracee_pid, c_pointer):
         return libc.ptrace(PTRACE_PEEKDATA, tracee_pid, ctypes.c_void_p(c_pointer), None)
@@ -108,22 +111,32 @@ class Debugger:
         word2 = np.uint64(high_word) & mask64
         return int((word2 << np.uint64(32)) | word1)
 
+    def get_next_line(self, line):
+        lines = sorted(self.line_mappings.keys())
+        while True:
+            if line in lines:
+                return line
+            elif line > max(lines):
+                break
+            line += 1
+        return None
+
     def set_breakpoint(self, tracee_pid, lineno):
-        i = 0
         address = 0
+        next_line = self.get_next_line(lineno)
 
         self.debug(f"checking for line {lineno}")
-        address = self.lineToRIP(lineno)
+        address = self.lineToRIP(next_line)
         if address == None:
             self.debug("No line found")
             return self.current_line
 
-        self.debug(f"Setting breakpoint at line {lineno} -> 0x{address:x}")
+        self.debug(f"Setting breakpoint at line {next_line} -> 0x{address:x}")
         self.saved_word_combined = self.get_double_word_at(tracee_pid, address)
 
         libc.ptrace(PTRACE_POKEDATA, tracee_pid, ctypes.c_void_p(address), 0xCC)
         self.breakpoint_active = True
-        return lineno + i
+        return next_line
 
     def read_string_from_pointer(self, child, c_pointer):
         chars = bytes()
@@ -273,23 +286,28 @@ class Debugger:
                 self.single_asm_step(tracee_pid)
                 self.stack_base = registers.rsp
                 self.debug(f"stack base = 0x{self.stack_base:x}")
-                self.current_line = self.set_breakpoint(tracee_pid, self.break_line)
+                self.current_line = self.set_breakpoint(tracee_pid, self.get_first_line())
                 continue
 
             if self.breakpoint_active:
-                self.remove_breakpoint(tracee_pid, self.current_line, registers)
                 self.debug(f"paused at line {self.current_line} -> 0x{self.lineToRIP(self.current_line):x}...")
+
+                if self.breakpoint_set and self.break_line == self.current_line:
+                    self.step_exec_mode = True
+            
+                self.remove_breakpoint(tracee_pid, self.current_line, registers)
+                snapshot_regs, snapshot_stack = self.save_program_state(tracee_pid, registers)
+                self.snapshots.append((deepcopy(snapshot_regs), deepcopy(snapshot_stack)))   
+                             
                 while True:
-                    cmd = self.input("")
+                    cmd = self.input("") if self.breakpoint_set and self.step_exec_mode else "n"
                     if cmd == "c":
                         break
                     elif cmd == "n":
-                        snapshot_regs, snapshot_stack = self.save_program_state(tracee_pid, registers)
-                        self.snapshots.append((deepcopy(snapshot_regs), deepcopy(snapshot_stack)))
                         self.single_src_step_fwd(tracee_pid)
                         break
                     elif cmd == "b":
-                        if self.replay_enabled:
+                        if self.replay_mode:
                             self.enter_replay_mode(tracee_pid)
                         else:
                             self.single_src_step_back(tracee_pid)
@@ -304,10 +322,14 @@ class Debugger:
 
                 
         self.debug(f"Tracee exited with code {self.get_tracee_exit_code(tracee_pid)}")
+        return 0
 
-    def start(self, break_line):
-        self.break_line = int(break_line)
-        self.current_line = int(break_line)
+    def start(self, break_line, replay_mode = False):
+        self.break_line = int(break_line) if break_line is not None else None
+        self.breakpoint_set = False if break_line is None else True
+        self.current_line = int(break_line) if break_line is not None else None
+        self.replay_mode = replay_mode
+        self.step_exec_mode = False
 
         self.debug(f"Spawning process {self.bin_name} as tracee")
         tracee_pid = Process(self.bin_name).start()
@@ -333,9 +355,10 @@ def main(args):
     file = args.target
     target_program = cython_transpile(file) if file.endswith(".py") else file
     break_line = args.breakpoint
+    replay_mode = args.replay
 
-    debugger = Debugger(file, target_program, False)
-    debugger.start(break_line)
+    debugger = Debugger(file, target_program)
+    debugger.start(break_line, replay_mode)
 
 
 if __name__ == "__main__":
